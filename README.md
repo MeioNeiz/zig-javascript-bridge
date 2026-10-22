@@ -43,6 +43,8 @@ Call into Javascript using `zjb`, generate the Javascript side code, and then bu
 
 Passing `--loader` to generate_js, after the wasm file, adds `Zjb.load(source, imports)`, which instantiates the wasm from a URL or Response and resolves to the bridge.  It also lets a script tag start the program with no hand-written Javascript: `<script src="zjb_extract.js" data-wasm="app.wasm"></script>` loads `app.wasm` (relative to the script) and calls its export named by `data-main`, default `main`.  `Zjb.ready` resolves to the bridge.  The simple folder uses this.
 
+`zig build test` in the root folder runs the tests in `test`, in node, which must be on PATH.
+
 ### Example
 
 An example which demonstrates usage of all of the components of `zjb` is in the example folder.  It includes:
