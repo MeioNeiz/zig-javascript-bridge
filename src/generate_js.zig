@@ -5,8 +5,16 @@ pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(init.arena.allocator());
     const io = init.io;
 
-    if (args.len != 4) {
+    // generate_js out.js ClassName in.wasm [--loader]
+    if (args.len != 4 and args.len != 5) {
         return ExtractError.BadArguments;
+    }
+    var loader = false;
+    if (args.len == 5) {
+        if (!std.mem.eql(u8, args[4], "--loader")) {
+            return ExtractError.BadArguments;
+        }
+        loader = true;
     }
 
     var importFunctions: std.ArrayList([]const u8) = .empty;
@@ -460,7 +468,40 @@ pub fn main(init: std.process.Init) !void {
 
     try writer.writeAll("  }\n"); // end setInstance
 
+    if (loader) {
+        try writer.writeAll(
+            \\  static async load(source, imports = {}) {
+            \\    const bridge = new this();
+            \\    const response = typeof source === "string" || source instanceof URL ? fetch(source) : source;
+            \\    const { instance } = await WebAssembly.instantiateStreaming(response, { ...imports, zjb: bridge.imports });
+            \\    bridge.setInstance(instance);
+            \\    return bridge;
+            \\  }
+            \\
+        );
+    }
+
     try writer.writeAll("};\n"); // end class
+
+    if (loader) {
+        // A script tag with data-wasm="app.wasm" (relative to the script) loads the wasm and
+        // calls its export named by data-main, default "main".  ClassName.ready resolves to
+        // the bridge.
+        try writer.writeAll(
+            \\if (typeof document !== "undefined" && document.currentScript?.dataset.wasm) {
+            \\  const script = document.currentScript;
+            \\  const url = new URL(script.dataset.wasm, script.src || document.baseURI);
+            \\
+        );
+        try writer.print(
+            \\  {0s}.ready = {0s}.load(url).then((bridge) => {{
+            \\    bridge.instance.exports[script.dataset.main ?? "main"]?.();
+            \\    return bridge;
+            \\  }});
+            \\}}
+            \\
+        , .{args[2]});
+    }
 
     std.sort.insertion([]const u8, export_names.items, {}, strBefore);
     if (export_names.items.len > 1) {

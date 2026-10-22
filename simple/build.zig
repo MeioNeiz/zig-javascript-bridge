@@ -22,6 +22,7 @@ pub fn build(b: *std.Build) void {
     const extract_simple_out = extract_simple.addOutputFileArg("zjb_extract.js");
     extract_simple.addArg("Zjb"); // Name of js class.
     extract_simple.addArtifactArg(simple);
+    extract_simple.addArg("--loader"); // Adds Zjb.load and the data-wasm script tag.
 
     const files = b.addWriteFiles();
     _ = files.addCopyFile(simple.getEmittedBin(), "simple.wasm");

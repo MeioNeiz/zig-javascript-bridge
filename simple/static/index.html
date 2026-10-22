@@ -5,21 +5,6 @@
 		<link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon"> 
 	</head>
 	<body>
-		<script src="zjb_extract.js"></script>
-		<script>
-			const env = {
-				memory: new WebAssembly.Memory({initial: 1}),
-				__stack_pointer: 0,
-			};
-
-			const zjb = new Zjb();
-
-			(function() {
-				WebAssembly.instantiateStreaming(fetch("simple.wasm"), {env: env, zjb: zjb.imports}).then(function (results) {
-					zjb.setInstance(results.instance);
-					results.instance.exports.main();
-				});
-			})();
-		</script>
+		<script src="zjb_extract.js" data-wasm="simple.wasm"></script>
 	</body>
 </html>
