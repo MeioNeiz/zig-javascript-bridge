@@ -8,6 +8,9 @@ pub fn string(b: []const u8) Handle {
 }
 
 pub fn constString(comptime b: []const u8) ConstHandle {
+    if (b.len == 0) {
+        return .empty_string;
+    }
     return struct {
         var handle: ?ConstHandle = null;
         fn get() ConstHandle {
