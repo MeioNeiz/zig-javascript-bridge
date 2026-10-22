@@ -647,4 +647,32 @@ const builtins = [_][]const u8{
     \\        return this.new_handle(new Uint8ClampedArray(this.instance.exports.memory.buffer, ptr, len));
     \\      },
     ,
+    \\      "bytesLength": (id) => {
+    \\        const value = this._handles.get(id);
+    \\        return ArrayBuffer.isView(value) ? value.byteLength : new Uint8Array(value).length;
+    \\      },
+    ,
+    \\      "readBytes": (id, ptr, len) => {
+    \\        const value = this._handles.get(id);
+    \\        const bytes = ArrayBuffer.isView(value) ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength) : new Uint8Array(value);
+    \\        if (bytes.length > 0 && bytes.length <= len) {
+    \\          new Uint8Array(this.instance.exports.memory.buffer, ptr, bytes.length).set(bytes);
+    \\        }
+    \\        return bytes.length;
+    \\      },
+    ,
+    \\      "encodeString": (id) => {
+    \\        this._encoder ??= new TextEncoder();
+    \\        return this.new_handle(this._encoder.encode(String(this._handles.get(id))));
+    \\      },
+    ,
+    \\      "encodeStringInto": (id, ptr, len) => {
+    \\        this._encoder ??= new TextEncoder();
+    \\        const value = String(this._handles.get(id));
+    \\        // An empty slice's pointer may be outside of memory.
+    \\        const dest = len === 0 ? new Uint8Array(0) : new Uint8Array(this.instance.exports.memory.buffer, ptr, len);
+    \\        const result = this._encoder.encodeInto(value, dest);
+    \\        return result.read === value.length ? result.written : -1;
+    \\      },
+    ,
 };

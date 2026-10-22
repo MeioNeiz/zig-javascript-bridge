@@ -162,6 +162,18 @@ pub const ConstHandle = enum(i32) {
     pub fn new(handle: ConstHandle, args: anytype) Handle {
         return handle.asHandle().new(args);
     }
+    pub fn readBytes(handle: ConstHandle, buf: []u8) error{NoSpaceLeft}![]u8 {
+        return handle.asHandle().readBytes(buf);
+    }
+    pub fn allocBytes(handle: ConstHandle, allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
+        return handle.asHandle().allocBytes(allocator);
+    }
+    pub fn readString(handle: ConstHandle, buf: []u8) error{NoSpaceLeft}![]u8 {
+        return handle.asHandle().readString(buf);
+    }
+    pub fn allocString(handle: ConstHandle, allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
+        return handle.asHandle().allocString(allocator);
+    }
 };
 
 pub const Handle = enum(i32) {
@@ -226,6 +238,42 @@ pub const Handle = enum(i32) {
 
     pub fn new(handle: Handle, args: anytype) Handle {
         return handle.invoke(args, Handle, "new_", "");
+    }
+
+    /// Copies the bytes of an ArrayBuffer, typed array or DataView into buf, and returns
+    /// the part of buf written.  Copies nothing if buf is too small.
+    pub fn readBytes(handle: Handle, buf: []u8) error{NoSpaceLeft}![]u8 {
+        const len = zjb.readBytes(handle, buf.ptr, buf.len);
+        if (len > buf.len) {
+            return error.NoSpaceLeft;
+        }
+        return buf[0..len];
+    }
+
+    /// Like readBytes, into memory from allocator, owned by the caller.
+    pub fn allocBytes(handle: Handle, allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
+        const len = zjb.bytesLength(handle);
+        // Allocating may grow wasm memory, so the copy has to make its view afterwards.
+        const buf = try allocator.alloc(u8, len);
+        std.debug.assert(zjb.readBytes(handle, buf.ptr, buf.len) == len);
+        return buf;
+    }
+
+    /// Encodes the value, converted with String(), as UTF-8 into buf, and returns the part
+    /// of buf written.  Returns NoSpaceLeft if the whole string doesn't fit.
+    pub fn readString(handle: Handle, buf: []u8) error{NoSpaceLeft}![]u8 {
+        const written = zjb.encodeStringInto(handle, buf.ptr, buf.len);
+        if (written < 0) {
+            return error.NoSpaceLeft;
+        }
+        return buf[0..@intCast(written)];
+    }
+
+    /// Like readString, into memory from allocator, owned by the caller.
+    pub fn allocString(handle: Handle, allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
+        const bytes = zjb.encodeString(handle);
+        defer bytes.release();
+        return bytes.allocBytes(allocator);
     }
 
     fn invoke(handle: Handle, args: anytype, comptime RetType: type, comptime prefix: []const u8, comptime suffix: []const u8) RetType {
@@ -326,6 +374,11 @@ const zjb = struct {
     extern "zjb" fn throwAndRelease(id: Handle) void;
     extern "zjb" fn equal(handle: Handle, other: Handle) bool;
     extern "zjb" fn handleCount() u32;
+
+    extern "zjb" fn bytesLength(handle: Handle) u32;
+    extern "zjb" fn readBytes(handle: Handle, ptr: [*]u8, len: u32) u32;
+    extern "zjb" fn encodeString(handle: Handle) Handle;
+    extern "zjb" fn encodeStringInto(handle: Handle, ptr: [*]u8, len: u32) i32;
 
     extern "zjb" fn i8ArrayView(ptr: *const anyopaque, size: u32) Handle;
     extern "zjb" fn u8ArrayView(ptr: *const anyopaque, size: u32) Handle;

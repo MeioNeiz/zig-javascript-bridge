@@ -74,6 +74,8 @@ A few extra notes:
 
 `zjb.string([]const u8)` decodes the slice of memory as a utf-8 string, returning a Handle.  The string will NOT update to reflect changes in the slice in Zig.
 
+`handle.readString(buf)` encodes a Javascript string (or anything `String()` converts) as utf-8 into the slice, returning the part written, or `error.NoSpaceLeft` if the whole string doesn't fit.  `handle.allocString(allocator)` returns a copy in memory from the allocator.  `handle.readBytes(buf)` and `handle.allocBytes(allocator)` do the same for the bytes of an ArrayBuffer, typed array or DataView.  Allocating may grow wasm memory; see the caution below.
+
 `zjb.global` will be set to the value of that global variable the first time it is called.  As it is intended to be used for Javascript objects or classes defined in the global scope, that usage will be safe.  For example, `console`, `document` or `Map`.  If you use it to retrieve a value or object you've defined in Javascript, ensure it's defined before your program runs and doesn't change.
 
 The \_ArrayView functions (`i8ArrayView`, `u8ArrayView`, etc) create the respective JavaScript typed array backed by the same memory as the Zig WASM instance.
