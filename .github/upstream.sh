@@ -17,14 +17,19 @@ compare() {
         out changed=false
         return
     fi
-    # Build with the Zig version upstream's README names, so a Zig bump shows up as such.
-    zig=$(git show "$new:README.md" | grep -oE 'work with Zig [0-9]+\.[0-9]+\.[0-9]+' |
-        head -n 1 | awk '{print $NF}')
+    # Build with the Zig version our main's README names; upstream may still be on an
+    # older one. The report flags a difference.
+    zig=$(readme_zig origin/main)
     out changed=true
     out "zig=${zig:-latest}"
     keep "OLD=$old"
     keep "NEW=$new"
     keep "ZIG=${zig:-latest}"
+}
+
+readme_zig() {
+    git show "$1:README.md" | grep -oE 'work with Zig [0-9]+\.[0-9]+\.[0-9]+' |
+        head -n 1 | awk '{print $NF}'
 }
 
 builds() {
@@ -85,6 +90,12 @@ report() {
         echo >>"$body"
     fi
 
+    local theirs_zig
+    theirs_zig=$(readme_zig "$NEW")
+    if [ "$theirs_zig" != "$ZIG" ]; then
+        echo "Upstream's README names Zig ${theirs_zig:-none}; ours names $ZIG." >>"$body"
+        echo >>"$body"
+    fi
     echo "Rebase onto it and build with Zig $ZIG (nothing pushed):" >>"$body"
     echo >>"$body"
     local b log dropped conflicts
