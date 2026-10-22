@@ -377,7 +377,7 @@ pub fn main(init: std.process.Init) !void {
         \\    this._export_reverse_handles = {};
         \\    this._handles = new Map();
         \\    this._handles.set(0, null);
-        \\    this._handles.set(1, window);
+        \\    this._handles.set(1, globalThis);
         \\    this._handles.set(2, "");
         \\    this._handles.set(3, this.exports);
         \\    this._next_handle = 4;
