@@ -23,18 +23,18 @@ pub fn build(b: *std.Build) void {
     extract_example.addArg("Zjb"); // Name of js class.
     extract_example.addArtifactArg(example);
 
-    const dir = std.Build.InstallDir.prefix;
-    b.getInstallStep().dependOn(&b.addInstallArtifact(example, .{
-        .dest_dir = .{ .override = dir },
-    }).step);
-    b.getInstallStep().dependOn(&b.addInstallFileWithDir(extract_example_out, dir, "zjb_extract.js").step);
-    b.getInstallStep().dependOn(&b.addInstallDirectory(.{
-        .source_dir = b.path("static"),
-        .install_dir = dir,
-        .install_subdir = "",
-    }).step);
+    const files = b.addWriteFiles();
+    _ = files.addCopyFile(example.getEmittedBin(), "example.wasm");
+    _ = files.addCopyFile(extract_example_out, "zjb_extract.js");
+    _ = files.addCopyDirectory(b.path("static"), "", .{});
 
-    const run_demo_server = demo_webserver.runDemoServer(b, b.getInstallStep(), .{});
+    b.installDirectory(.{
+        .source_dir = files.getDirectory(),
+        .install_dir = .prefix,
+        .install_subdir = "",
+    });
+
+    const run_demo_server = demo_webserver.runDemoServer(b, files, .{});
     const serve = b.step("serve", "serve website locally");
     serve.dependOn(run_demo_server);
 }

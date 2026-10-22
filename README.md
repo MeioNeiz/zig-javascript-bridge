@@ -35,7 +35,7 @@ This package is clearly inspired by Go's solution to this problem: https://pkg.g
 
 ## Usage
 
-As of 2026-04-16, zjb is only known to work with Zig 0.16.0.  If you're using an older version of Zig, look at past commits.  If you're looking for a newer version of Zig, check for branches.
+As of 2026-10-22, zjb is only known to work with Zig 0.17.0.  If you're using an older version of Zig, look at past commits.  If you're looking for a newer version of Zig, check for branches.
 
 The simple folder provides a good template to start from.  You'll need to update to reference to zjb in `build.zig.zon`.  There's currently no release schedule for point releases, so you should use the latest available code.  Eg, copy the entire `simple` folder into your empty project, then run `zig fetch --save=zjb git+https://github.com/scottredig/zig-javascript-bridge`
 

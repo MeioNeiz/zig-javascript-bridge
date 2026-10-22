@@ -3,7 +3,6 @@ const demo_webserver = @import("demo_webserver");
 
 pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
-    const dir = std.Build.InstallDir.prefix;
 
     const zjb = b.dependency("javascript_bridge", .{});
 
@@ -24,18 +23,18 @@ pub fn build(b: *std.Build) void {
     extract_simple.addArg("Zjb"); // Name of js class.
     extract_simple.addArtifactArg(simple);
 
-    const install_step = b.getInstallStep();
-    install_step.dependOn(&b.addInstallArtifact(simple, .{
-        .dest_dir = .{ .override = dir },
-    }).step);
-    install_step.dependOn(&b.addInstallFileWithDir(extract_simple_out, dir, "zjb_extract.js").step);
-    install_step.dependOn(&b.addInstallDirectory(.{
-        .source_dir = b.path("static"),
-        .install_dir = dir,
-        .install_subdir = "",
-    }).step);
+    const files = b.addWriteFiles();
+    _ = files.addCopyFile(simple.getEmittedBin(), "simple.wasm");
+    _ = files.addCopyFile(extract_simple_out, "zjb_extract.js");
+    _ = files.addCopyDirectory(b.path("static"), "", .{});
 
-    const run_demo_server = demo_webserver.runDemoServer(b, install_step, .{});
+    b.installDirectory(.{
+        .source_dir = files.getDirectory(),
+        .install_dir = .prefix,
+        .install_subdir = "",
+    });
+
+    const run_demo_server = demo_webserver.runDemoServer(b, files, .{});
     const serve = b.step("serve", "serve website locally");
     serve.dependOn(run_demo_server);
 }

@@ -11,8 +11,8 @@ pub fn build(b: *std.Build) void {
             // Reusing this will occur more often than compiling this, as
             // it usually can be cached.  So faster execution is worth slower
             // initial build.
-            .optimize = .Debug,
-            // .optimize = .ReleaseSafe,
+            .optimize = .debug,
+            // .optimize = .safe,
         }),
     });
     b.installArtifact(generate_js);
