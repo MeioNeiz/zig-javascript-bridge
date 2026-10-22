@@ -162,6 +162,9 @@ pub const ConstHandle = enum(i32) {
     pub fn new(handle: ConstHandle, args: anytype) Handle {
         return handle.asHandle().new(args);
     }
+    pub fn bind(handle: ConstHandle, args: anytype) Handle {
+        return handle.asHandle().bind(args);
+    }
     pub fn readBytes(handle: ConstHandle, buf: []u8) error{NoSpaceLeft}![]u8 {
         return handle.asHandle().readBytes(buf);
     }
@@ -238,6 +241,13 @@ pub const Handle = enum(i32) {
 
     pub fn new(handle: Handle, args: anytype) Handle {
         return handle.invoke(args, Handle, "new_", "");
+    }
+
+    /// Function.prototype.bind with a null `this`: the returned function calls this one
+    /// with `args` first. Gives exported callbacks a context value, eg an index into
+    /// Zig state.
+    pub fn bind(handle: Handle, args: anytype) Handle {
+        return handle.call("bind", .{ConstHandle.null} ++ args, Handle);
     }
 
     /// Copies the bytes of an ArrayBuffer, typed array or DataView into buf, and returns
