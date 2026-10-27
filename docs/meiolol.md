@@ -19,7 +19,7 @@ value to meiolol against cost.
 | 1 | Generated loader: one script tag, no hand-written JS | high | low | done |
 | 2 | Read JS strings and bytes into Zig memory | high | low | done |
 | 3 | Callback context (`bind`), so promise chains carry state | medium-high | very low | done |
-| 4 | Handle scopes: release a callback's handles at once | medium | medium | open |
+| 4 | Handle scopes: release a callback's handles at once | medium | medium | done |
 | 5 | Promise steps without one export each (fetch, then text) | medium | medium | open |
 | 6 | Release builds: a trace or names on trap | low-medium | low to medium | open |
 | 7 | Batch DOM ops into one buffer | low | high | not planned |
@@ -40,13 +40,12 @@ value to meiolol against cost.
 3. **Context.** `Handle.bind(args)` is `fn.bind(null, ...args)`: an exported callback gets
    a context value (an index into Zig state) first. A fetch then text chain is two bound
    callbacks, each carrying the request's index. No new JS needed.
-4. **Handle scopes.** Handle ids only grow, so a scope could record the next id and
-   release every id at or above it on exit. The catch: ConstHandles (`constString`,
-   `global`, `fnHandle`) are created lazily on first use, possibly inside a scope, and
-   would be released with it. Needs const handles pinned on the JS side (a set the range
-   release skips) and an escape for a value that must outlive the scope (V8's
-   EscapableHandleScope). meiolol's `dom.zig` can own every release instead, so pages
-   never see a handle; do this only if that proves leaky.
+4. **Handle scopes.** `zjb.scope()` records the next id; `end()` releases every id made
+   since, except kept ones (`Handle.keep()`, or `kept()` in an expression), a set on the
+   JS side that `release` also clears. Const handles are kept when made, so one first
+   used inside a scope survives it. Rule for callers: a handle that outlives the callback
+   it was made in is kept. `unkeptHandleCount()` is then a leak check anywhere outside a
+   scope (meiolol runs it after each event in dev builds).
 5. **Promise steps.** `then` needs a function, and calling a method on the result (`r =>
    r.text()`) needs an export per step today. A generated `then_<method>` import kind would
    cover it, but bound callbacks (3) already work; wait for real use.

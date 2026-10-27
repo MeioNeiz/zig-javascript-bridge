@@ -18,7 +18,7 @@ pub fn constString(comptime b: []const u8) ConstHandle {
                 return h;
             }
             ConstHandle.handle_count += 1;
-            handle = @fromBackingInt(@backingInt(string(b)));
+            handle = @fromBackingInt(@backingInt(string(b).kept()));
             return handle.?;
         }
     }.get();
@@ -32,7 +32,7 @@ pub fn global(comptime b: []const u8) ConstHandle {
                 return h;
             }
             ConstHandle.handle_count += 1;
-            handle = @fromBackingInt(@backingInt(ConstHandle.global.get(b, Handle)));
+            handle = @fromBackingInt(@backingInt(ConstHandle.global.get(b, Handle).kept()));
             return handle.?;
         }
     }.get();
@@ -48,7 +48,7 @@ pub fn fnHandle(comptime name: []const u8, comptime f: anytype) ConstHandle {
                 return h;
             }
             ConstHandle.handle_count += 1;
-            handle = @fromBackingInt(@backingInt(ConstHandle.exports.get(name, Handle)));
+            handle = @fromBackingInt(@backingInt(ConstHandle.exports.get(name, Handle).kept()));
             return handle.?;
         }
     }.get();
@@ -85,6 +85,29 @@ pub fn panic(msg: []const u8, stacktrace: ?*std.lang.StackTrace, ret_addr: ?usiz
 
 pub fn unreleasedHandleCount() u32 {
     return zjb.handleCount() - ConstHandle.handle_count;
+}
+
+/// Handles that are neither released nor kept.  Outside every scope, any of these is a leak.
+pub fn unkeptHandleCount() u32 {
+    return zjb.handleCount() - zjb.keptCount() - 4;
+}
+
+/// Handles made after `scope()` are released together by `end()`, except those kept
+/// (`Handle.keep`), which stay until released.  Const handles are always kept, so one first
+/// used inside a scope survives it.  Scopes nest, and the inner one must end first:
+///
+///     const s = zjb.scope();
+///     defer s.end();
+pub const Scope = struct {
+    mark: u32,
+
+    pub fn end(s: Scope) void {
+        zjb.releaseFrom(s.mark);
+    }
+};
+
+pub fn scope() Scope {
+    return .{ .mark = zjb.nextHandle() };
 }
 
 pub fn throwError(err: anyerror) noreturn {
@@ -191,6 +214,19 @@ pub const Handle = enum(i32) {
         if (@backingInt(handle) > 2) {
             zjb.release(handle);
         }
+    }
+
+    /// The handle outlives the scope it was made in, until released.
+    pub fn keep(handle: Handle) void {
+        if (@backingInt(handle) > 3) {
+            zjb.keep(handle);
+        }
+    }
+
+    /// Like keep, for use in an expression: `nodes.append(gpa, el.kept())`.
+    pub fn kept(handle: Handle) Handle {
+        handle.keep();
+        return handle;
     }
 
     pub fn get(handle: Handle, comptime field: []const u8, comptime RetType: type) RetType {
@@ -384,6 +420,10 @@ const zjb = struct {
     extern "zjb" fn throwAndRelease(id: Handle) void;
     extern "zjb" fn equal(handle: Handle, other: Handle) bool;
     extern "zjb" fn handleCount() u32;
+    extern "zjb" fn keep(id: Handle) void;
+    extern "zjb" fn keptCount() u32;
+    extern "zjb" fn nextHandle() u32;
+    extern "zjb" fn releaseFrom(mark: u32) void;
 
     extern "zjb" fn bytesLength(handle: Handle) u32;
     extern "zjb" fn readBytes(handle: Handle, ptr: [*]u8, len: u32) u32;

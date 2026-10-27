@@ -389,6 +389,7 @@ pub fn main(init: std.process.Init) !void {
         \\    this._handles.set(2, "");
         \\    this._handles.set(3, this.exports);
         \\    this._next_handle = 4;
+        \\    this._kept = new Set();
         \\  }
         \\
     ); // end constructor
@@ -652,6 +653,23 @@ const builtins = [_][]const u8{
     ,
     \\      "release": (id) => {
     \\        this._handles.delete(id);
+    \\        this._kept.delete(id);
+    \\      },
+    ,
+    \\      "keep": (id) => {
+    \\        this._kept.add(id);
+    \\      },
+    ,
+    \\      "nextHandle": () => {
+    \\        return this._next_handle;
+    \\      },
+    ,
+    \\      "releaseFrom": (mark) => {
+    \\        for (let id = mark; id < this._next_handle; id++) {
+    \\          if (!this._kept.has(id)) {
+    \\            this._handles.delete(id);
+    \\          }
+    \\        }
     \\      },
     ,
     \\      "dataview": (ptr, len) => {
@@ -674,6 +692,10 @@ const builtins = [_][]const u8{
     ,
     \\      "handleCount": () => {
     \\        return this._handles.size;
+    \\      },
+    ,
+    \\      "keptCount": () => {
+    \\        return this._kept.size;
     \\      },
     ,
     \\      "i8ArrayView": (ptr, len) => {

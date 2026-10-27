@@ -170,6 +170,57 @@ fn checkPromiseThen() callconv(.c) void {
     expectEqualStrings("done", resolved_with[0..resolved_len]);
 }
 
+fn testScope() callconv(.c) void {
+    const before = zjb.unreleasedHandleCount();
+    var kept: zjb.Handle = .null;
+    {
+        const s = zjb.scope();
+        defer s.end();
+        _ = zjb.string("a");
+        _ = zjb.global("Object").new(.{});
+        kept = zjb.string("kept").kept();
+        expect(zjb.unreleasedHandleCount() == before + 3, "made in the scope");
+    }
+    expect(zjb.unreleasedHandleCount() == before + 1, "scope released all but the kept one");
+    expect(zjb.unkeptHandleCount() == 0, "nothing unkept");
+    var buf: [8]u8 = undefined;
+    expectEqualStrings("kept", kept.readString(&buf) catch @panic("no space"));
+    kept.release();
+}
+
+fn testScopeKeepsConstHandles() callconv(.c) void {
+    {
+        const s = zjb.scope();
+        defer s.end();
+        // First use of this const string and global: made inside the scope.
+        _ = zjb.global("Math").call("max", .{ zjb.constString("1"), @as(i32, 0) }, f64);
+    }
+    var buf: [8]u8 = undefined;
+    expectEqualStrings("1", zjb.constString("1").readString(&buf) catch @panic("no space"));
+    expect(zjb.global("Math").call("min", .{ @as(i32, 2), @as(i32, 3) }, f64) == 2, "global survived");
+}
+
+fn testScopesNest() callconv(.c) void {
+    const outer = zjb.scope();
+    const a = zjb.string("outer");
+    {
+        const inner = zjb.scope();
+        defer inner.end();
+        _ = zjb.string("inner");
+    }
+    var buf: [8]u8 = undefined;
+    expectEqualStrings("outer", a.readString(&buf) catch @panic("no space"));
+    outer.end();
+}
+
+fn testReleasedKeptHandle() callconv(.c) void {
+    const s = zjb.scope();
+    defer s.end();
+    const h = zjb.string("x").kept();
+    h.release();
+    expect(zjb.unkeptHandleCount() == 0, "a released kept handle isn't counted");
+}
+
 comptime {
     zjb.exportFn("mainRan", &mainRan);
     zjb.exportFn("unreleasedHandles", &unreleasedHandles);
@@ -182,4 +233,8 @@ comptime {
     zjb.exportFn("testBind", &testBind);
     zjb.exportFn("testPromiseThen", &testPromiseThen);
     zjb.exportFn("checkPromiseThen", &checkPromiseThen);
+    zjb.exportFn("testScope", &testScope);
+    zjb.exportFn("testScopeKeepsConstHandles", &testScopeKeepsConstHandles);
+    zjb.exportFn("testScopesNest", &testScopesNest);
+    zjb.exportFn("testReleasedKeptHandle", &testReleasedKeptHandle);
 }
